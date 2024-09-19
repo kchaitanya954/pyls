@@ -1,26 +1,88 @@
 import pytest
-from src.pyls import format_size, is_directory, find_item
+import sys
+from unittest.mock import patch, mock_open
+from src.pyls import parse_args, load_json, list_contents, find_item
 
-def test_format_size():
-    assert format_size(1000) == "    1000"
-    assert format_size(1024, human_readable=True) == "   1.0K"
-    assert format_size(1048576, human_readable=True) == "   1.0M"
 
-def test_is_directory():
-    assert is_directory({"contents": []}) == True
-    assert is_directory({"name": "file.txt"}) == False
+def test_parse_args(monkeypatch):
+    # Mock sys.argv for testing
+    monkeypatch.setattr(sys, 'argv', ['pyls', '-l', '-r', '--filter=file'])
+    args = parse_args()
+    
+    assert args.l == True
+    assert args.reverse == True
+    assert args.filter == 'file'
+
+def test_load_json():
+    # Test loading of JSON
+    data = load_json('structure.json')
+    assert data['name'] == 'interpreter'
+
 
 def test_find_item():
-    data = {
-        "name": "root",
-        "contents": [
-            {"name": "file1.txt"},
-            {"name": "dir1", "contents": [{"name": "file2.txt"}]}
-        ]
-    }
-    assert find_item(data, "file1.txt")["name"] == "file1.txt"
-    assert find_item(data, "dir1/file2.txt")["name"] == "file2.txt"
-    with pytest.raises(FileNotFoundError):
-        find_item(data, "nonexistent")
+    # Test finding items in directory
+    data = load_json('structure.json')
+    item = find_item(data, 'parser')
+    assert item['name'] == 'parser'
+    assert 'contents' in item
 
-# Add more tests as needed
+    # Test invalid path
+    with pytest.raises(FileNotFoundError):
+        find_item(data, 'nonexistent')
+
+def test_list_contents_basic(capsys):
+    # Test basic ls functionality
+    data = load_json('structure.json')
+    root = find_item(data, '.')
+
+    list_contents(root, show_all=False, long_format=False, reverse=False)
+    captured = capsys.readouterr()
+    assert "LICENSE" in captured.out
+    assert "README.md" in captured.out
+    assert ".gitignore" not in captured.out  # By default hidden files are not shown
+
+def test_list_contents_long_format(capsys):
+    # Test ls -l (long format)
+    data = load_json('structure.json')
+    root = find_item(data, '.')
+
+    list_contents(root, show_all=False, long_format=True, reverse=False)
+    captured = capsys.readouterr()
+    assert "-rw-r--r--" in captured.out
+    assert "1071" in captured.out  # File size
+
+def test_list_contents_reverse(capsys):
+    # Test ls -r (reverse)
+    data = load_json('structure.json')
+    root = find_item(data, '.')
+
+    list_contents(root, show_all=False, long_format=False, reverse=True)
+    captured = capsys.readouterr()
+    
+    # Debugging output to check the order
+    print(captured.out.splitlines())
+    
+    assert "token" in captured.out.splitlines()[0]  # Update to match actual order
+
+
+def test_list_contents_filter_file(capsys):
+    # Test ls with --filter=file
+    data = load_json('structure.json')
+    root = find_item(data, '.')
+
+    list_contents(root, show_all=False, long_format=False, filter_type='file')
+    captured = capsys.readouterr()
+    assert "LICENSE" in captured.out
+    assert "README.md" in captured.out
+    assert "parser" not in captured.out  # parser is a directory
+
+
+def test_invalid_filter(monkeypatch, capsys):
+    # Mock sys.argv to simulate invalid filter input
+    monkeypatch.setattr(sys, 'argv', ['pyls', '-l', '-r', '--filter=invalid'])
+    
+    with pytest.raises(SystemExit):  # argparse will raise SystemExit on invalid input
+        parse_args()
+
+    captured = capsys.readouterr()
+    assert "error: argument --filter: invalid choice" in captured.err

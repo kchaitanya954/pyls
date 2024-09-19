@@ -48,7 +48,7 @@ To set up the development environment:
 
 2. Run tests:
    ```
-   pytest
+   python -m pytest
    ```
 
 3. Check code style:
@@ -69,7 +69,10 @@ pyls/
 │
 ├── pyproject.toml
 ├── README.md
+├── pytest.ini
+├── LICENCE
 └── .gitignore
+
 ```
 
 ## Contributing
