@@ -36,6 +36,7 @@ Options:
 - `-t`: Sort by modification time, newest first
 - `--filter {file,dir}`: Filter output (file or dir)
 - `-H`, `--human-readable`: Show human-readable file sizes
+- `-f`, `--file`: Shows the content on different json files
 
 ## Development
 
@@ -74,7 +75,3 @@ pyls/
 └── .gitignore
 
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.

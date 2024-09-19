@@ -17,15 +17,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-t', action='store_true', help='Sort by modification time, newest first')
     parser.add_argument('--filter', choices=['file', 'dir'], help='Filter output (file or dir)')
     parser.add_argument('-H', '--human-readable', action='store_true', help='Show human-readable file sizes')
+    parser.add_argument('-f', '--file', default='structure.json', help='Specify JSON file to load (default: structure.json)')
+
     return parser.parse_args()
 
 
-def load_json(file_path: str = 'structure.json') -> Dict:
+def load_json(file_path: str) -> Dict:
     '''
     function to load the json files
     '''
-    with open(file_path, 'r') as f:
-        return json.load(f)
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"error: Cannot access '{file_path}': No such file or directory", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError:
+        print(f"error: Failed to parse '{file_path}': Invalid JSON format", file=sys.stderr)
+        sys.exit(1)
 
 
 def format_time(timestamp: int) -> str:
@@ -114,7 +123,7 @@ def print_item(item: Dict, long_format: bool, human_readable: bool) -> None:
 
 def main() -> None:
     args = parse_args()
-    data = load_json()
+    data = load_json(args.file)
 
     try:
         item = find_item(data, args.path)
